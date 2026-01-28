@@ -1,0 +1,72 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+#app{
+  height: 100vh;
+  width: 100vw;
+}
+
+/* .chart-container {
+  height: 100%;
+  width: 100%;
+} */
+
+#main-container {
+  height: 100vh;
+  overflow: hidden; /* critical */
+}
+
+/* Title */
+.title-bar {
+  flex: 0 0 8%;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.title-bar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.title-bar p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+/* Map panel */
+.map-panel {
+  flex: 0 0 45%;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Bottom row */
+.bottom-panel {
+  flex: 1;
+  display: flex;
+}
+
+/* Individual panels */
+.panel {
+  height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.panel.half {
+  width: 50%;
+  border-left: 1px solid #ddd;
+}
