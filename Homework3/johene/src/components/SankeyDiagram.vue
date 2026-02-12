@@ -82,13 +82,16 @@ function onResize() {
 const debouncedOnResize = debounce(onResize, 100)
 
 // name normalization
-function normalizeName(name: string, reversed: boolean): string {
+function normalizeName(name: string): string {
   const parts = name.trim().split(/\s+/)
-  if (parts.length < 2) return name.toLowerCase()
 
-  return reversed
-    ? `${parts[1]} ${parts[0]}`.toLowerCase()
-    : `${parts[0]} ${parts[1]}`.toLowerCase()
+  // Separate ALL CAPS tokens (likely last name)
+  const last = parts.filter(p => p === p.toUpperCase())
+  const first = parts.filter(p => p !== p.toUpperCase())
+
+  return [...last, ...first]
+    .join(' ')
+    .toLowerCase()
 }
 
 // Load Data
@@ -105,14 +108,14 @@ async function loadData() {
 
   medallists.forEach(d => {
     if (!d.name || !d.country) return
-    const key = normalizeName(d.name, true)
+    const key = normalizeName(d.name)
     nameToCountry.set(key, d.country)
   })
 
   fullData = medals
     .map(d => {
       if (!d.name || !d.discipline || !d.medal_type) return null
-      const key = normalizeName(d.name, false)
+      const key = normalizeName(d.name)
       const country = nameToCountry.get(key)
       if (!country) return null
 
@@ -138,26 +141,39 @@ function buildSankeyData() {
     d => cleanCountry(d.country) === selectedClean
   )
   } else {
-    const topCountries = Array.from(
-      d3.rollups(fullData, v => v.length, d => d.country)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(d => d[0])
-    )
+  // --- Step 1: Compute total medals per country ---
+  const countryTotals = d3.rollups(
+    fullData,
+    v => v.length,
+    d => d.country
+  )
 
-    const topDisciplines = Array.from(
-      d3.rollups(fullData, v => v.length, d => d.discipline)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(d => d[0])
-    )
+  // Sort descending by total medal count
+  countryTotals.sort((a, b) => b[1] - a[1])
 
-    filtered = fullData.filter(
-      d =>
-        topCountries.includes(d.country) &&
-        topDisciplines.includes(d.discipline)
-    )
-  }
+  // Take top 10 countries
+  const topCountries = countryTotals
+    .slice(0, 10)
+    .map(d => d[0])
+
+  // --- Step 2: Keep your existing discipline logic ---
+  const topDisciplines = d3.rollups(
+    fullData,
+    v => v.length,
+    d => d.discipline
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(d => d[0])
+
+  // --- Step 3: Filter ---
+  filtered = fullData.filter(
+    d =>
+      topCountries.includes(d.country) &&
+      topDisciplines.includes(d.discipline)
+  )
+}
+
 
   const countryToDiscipline = d3.rollups(
     filtered,
@@ -213,9 +229,32 @@ function initSankey() {
   const width = size.value.width
   const height = size.value.height
 
-  const colorScale = d3.scaleOrdinal<string>()
-    .domain(nodes.value.map(d => d.name))
+  // Identify node types
+  const medalColors: Record<string, string> = {
+    'Gold Medal': '#D4AF37',
+    'Silver Medal': '#C0C0C0',
+    'Bronze Medal': '#CD7F32'
+  }
+
+  // Countries = nodes that appear as sources but not medal types
+  const countrySet = new Set(
+    links.value.map(l => l.source)
+  )
+
+  const disciplineSet = new Set(
+    links.value
+      .filter(l => !medalColors[l.target])
+      .map(l => l.target)
+  )
+
+  // Country color scale
+  const countryColor = d3.scaleOrdinal<string>()
+    .domain(Array.from(countrySet))
     .range(d3.schemeTableau10)
+
+  // const colorScale = d3.scaleOrdinal<string>()
+  //   .domain(nodes.value.map(d => d.name))
+  //   .range(d3.schemeTableau10)
 
   const sankeyGenerator = sankey<SankeyNode, any>()
     .nodeId(d => d.name)
@@ -238,7 +277,17 @@ function initSankey() {
     .join('path')
     .attr('d', sankeyLinkHorizontal())
     .attr('fill', 'none')
-    .attr('stroke', d => colorScale(d.source.name))
+    .attr('stroke', d => {
+      if (medalColors[d.target.name]) {
+        return medalColors[d.target.name]
+      }
+
+      if (disciplineSet.has(d.source.name)) {
+        return '#bbbbbb'
+      }
+
+      return countryColor(d.source.name)
+    })
     .attr('stroke-opacity', 0.45)
     .attr('stroke-width', d => Math.max(1, d.width))
 
@@ -253,7 +302,17 @@ function initSankey() {
     .attr('y', d => d.y0!)
     .attr('height', d => d.y1! - d.y0!)
     .attr('width', d => d.x1! - d.x0!)
-    .attr('fill', d => colorScale(d.name))
+    .attr('fill', d => {
+      if (medalColors[d.name]) {
+        return medalColors[d.name]
+      }
+
+      if (disciplineSet.has(d.name)) {
+        return '#cccccc'   // sports in neutral gray
+      }
+
+      return countryColor(d.name)  // countries get color
+    })
     .attr('stroke', '#333')
 
   node.append('text')

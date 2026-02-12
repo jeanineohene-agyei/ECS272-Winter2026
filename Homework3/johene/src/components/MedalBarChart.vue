@@ -61,6 +61,13 @@ function initChart() {
   const width = size.value.width
   const height = size.value.height - headerHeight
 
+  function getBarColor() {
+    if (medalType.value === 'gold') return '#D4AF37'
+    if (medalType.value === 'silver') return '#C0C0C0'
+    if (medalType.value === 'bronze') return '#CD7F32'
+    return '#6C63FF'
+}
+
   svg
     .attr('width', width)
     .attr('height', height)
@@ -85,7 +92,7 @@ function initChart() {
   /* sort */
   const sorted = [...data.value]
     .sort((a, b) => b[medalType.value] - a[medalType.value])
-    .slice(0, 15)
+    .slice(0, 10)
 
   const maxValue = d3.max(sorted, d => d[medalType.value]) ?? 0
 
@@ -144,7 +151,8 @@ function initChart() {
       .attr('y', d => yScale(d.country)!)
       .attr('height', yScale.bandwidth())
       .attr('width', 0)
-      .attr('fill', '#4a90e2')
+      .attr('fill', getBarColor())   // 👈 SET HERE
+      .attr('rx', 5)
       .call(enter => enter.transition()
         .duration(700)
         .ease(d3.easeCubicInOut)
@@ -152,6 +160,7 @@ function initChart() {
       ),
 
     update => update
+      .attr('fill', getBarColor())   // 👈 AND SET HERE
       .call(update => update.transition()
         .duration(700)
         .ease(d3.easeCubicInOut)
